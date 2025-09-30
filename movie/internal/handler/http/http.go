@@ -13,7 +13,7 @@ type Handler struct {
 	ctrl *movie.Controller
 }
 
-func newHandler(ctrl *movie.Controller) *Handler {
+func NewHandler(ctrl *movie.Controller) *Handler {
 	return &Handler{ctrl: ctrl}
 }
 
