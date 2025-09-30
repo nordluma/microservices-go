@@ -37,7 +37,7 @@ type Controller struct {
 	metadataGateway metadataGateway
 }
 
-func NewGateway(
+func NewController(
 	ratingGateway ratingGateway,
 	metadataGateway metadataGateway,
 ) *Controller {
