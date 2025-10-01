@@ -3,26 +3,36 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
+	"math/rand"
 	"net/http"
 
 	"github.com/nordluma/microservices-go/metadata/pkg/model"
 	"github.com/nordluma/microservices-go/movie/internal/gateway"
+	"github.com/nordluma/microservices-go/pkg/discovery"
 )
 
 type Gateway struct {
-	addr string
+	registry discovery.Registry
 }
 
-func NewGateway(addr string) *Gateway {
-	return &Gateway{addr: addr}
+func NewGateway(registry discovery.Registry) *Gateway {
+	return &Gateway{registry: registry}
 }
 
 func (g *Gateway) GetById(
 	ctx context.Context,
 	id string,
 ) (*model.Metadata, error) {
-	req, err := http.NewRequest(http.MethodGet, g.addr+"/metadata", nil)
+	url, err := g.getServiceUrl(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Calling metadata service. Request: %s", url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -49,4 +59,17 @@ func (g *Gateway) GetById(
 	}
 
 	return data, nil
+}
+
+func (g *Gateway) getServiceUrl(ctx context.Context) (string, error) {
+	addrs, err := g.registry.Discover(ctx, "metadata")
+	if err != nil {
+		return "", err
+	}
+
+	if len(addrs) == 0 {
+		return "", errors.New("no available metadata services")
+	}
+
+	return "http://" + addrs[rand.Intn(len(addrs))] + "/metadata", nil
 }

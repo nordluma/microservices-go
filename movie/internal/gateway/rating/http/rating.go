@@ -4,18 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"math/rand"
 	"net/http"
 
 	"github.com/nordluma/microservices-go/movie/internal/gateway"
+	"github.com/nordluma/microservices-go/pkg/discovery"
 	"github.com/nordluma/microservices-go/rating/pkg/model"
 )
 
 type GateWay struct {
-	addr string
+	registry discovery.Registry
 }
 
-func NewGateWay(addr string) *GateWay {
-	return &GateWay{addr: addr}
+func NewGateWay(registry discovery.Registry) *GateWay {
+	return &GateWay{registry: registry}
 }
 
 func (g *GateWay) GetAggregatedRating(
@@ -23,7 +26,13 @@ func (g *GateWay) GetAggregatedRating(
 	recordID model.RecordID,
 	recordType model.RecordType,
 ) (float64, error) {
-	req, err := http.NewRequest(http.MethodGet, g.addr+"/rating", nil)
+	url, err := g.getServiceUrl(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	log.Printf("calling rating service. Request: GET %s", url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -61,11 +70,14 @@ func (g *GateWay) InsertRating(
 	userID model.UserID,
 	value model.RatingValue,
 ) error {
+	url, err := g.getServiceUrl(ctx)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("calling rating service. Request: %s", url)
 	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPut,
-		g.addr+"/rating",
-		nil,
+		ctx, http.MethodPut, url, nil,
 	)
 	if err != nil {
 		return err
@@ -89,4 +101,17 @@ func (g *GateWay) InsertRating(
 	}
 
 	return nil
+}
+
+func (g *GateWay) getServiceUrl(ctx context.Context) (string, error) {
+	addrs, err := g.registry.Discover(ctx, "rating")
+	if err != nil {
+		return "", err
+	}
+
+	if len(addrs) == 0 {
+		return "", fmt.Errorf("no rating service instances available")
+	}
+
+	return "http://" + addrs[rand.Intn(len(addrs))] + "/rating", nil
 }
