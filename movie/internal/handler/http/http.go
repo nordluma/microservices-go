@@ -23,6 +23,7 @@ func (h *Handler) GetMovieDetails(w http.ResponseWriter, req *http.Request) {
 
 	details, err := h.ctrl.GetById(ctx, id)
 	if err != nil {
+		log.Printf("error getting movie: %v", err)
 		if errors.Is(err, movie.ErrNotFound) {
 			w.WriteHeader(http.StatusNotFound)
 			return
