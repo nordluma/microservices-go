@@ -1,8 +1,9 @@
-package memory
+package inmemory
 
 import (
 	"context"
 	"errors"
+	"log"
 	"sync"
 	"time"
 
@@ -48,6 +49,11 @@ func (r *InMemoryRegistry) Register(
 		hostPort:      hostPort,
 		lastHeartbeat: time.Now(),
 	}
+	log.Printf(
+		"registering new service: %s, address: %s",
+		serviceName,
+		hostPort,
+	)
 	r.serviceAddrs[serviceNameType(serviceName)][instanceIDType(instanceID)] = instance
 
 	return nil
@@ -64,6 +70,7 @@ func (r *InMemoryRegistry) Deregister(
 		return discovery.ErrNotFound
 	}
 
+	log.Printf("deregistering service: %s", instancedID)
 	delete(
 		r.serviceAddrs[serviceNameType(serviceName)],
 		instanceIDType(instancedID),
@@ -76,6 +83,7 @@ func (r *InMemoryRegistry) HealthCheck(instanceID, serviceName string) error {
 	r.Lock()
 	defer r.Unlock()
 
+	log.Printf("performing healthcheck for: %s", instanceID)
 	if _, ok := r.serviceAddrs[serviceNameType(serviceName)]; !ok {
 		return errors.New("service not registered")
 	}
@@ -96,6 +104,7 @@ func (r *InMemoryRegistry) Discover(
 	r.RLock()
 	defer r.RUnlock()
 
+	log.Printf("discovering active services for: %s", serviceName)
 	if len(r.serviceAddrs[serviceNameType(serviceName)]) == 0 {
 		return nil, discovery.ErrNotFound
 	}
